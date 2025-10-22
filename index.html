@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kuwait Coast Guard – Interactive Map</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="favicon.png" type="image/png">
+
+  <!-- Core Leaflet / QGIS2Web includes from your export -->
+  <link rel="stylesheet" href="css/leaflet.css">
+  <link rel="stylesheet" href="css/qgis2web.css">
+  <link rel="stylesheet" href="css/fontawesome-all.min.css">
+  <link rel="stylesheet" href="css/leaflet-measure.css">
+
+  <!-- Fullscreen control (plugin) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.css">
+  <script src="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.js"></script>
+
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+
+    /* Legend (bottom-right) */
+    #map-legend {
+      position: absolute;
+      right: 10px; bottom: 14px;
+      z-index: 1000;
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+      font: 13px/1.35 Arial, sans-serif;
+      max-width: 260px;
+    }
+    #map-legend b { display:block; margin-bottom:6px; }
+    .legend-row { display:flex; align-items:center; margin: 4px 0; }
+    .swatch { width:22px; height:4px; margin-right:8px; display:inline-block; border-radius:2px; }
+    .swatch-bathy-major { background:#004c80; height:4px; }
+    .swatch-bathy-minor { background:#7ec8e3; height:2px; }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px; }
+    .dot-school { background:#2E7DD7; border:1px solid #0f3e78; }
+    .dot-fire { background:#E74C3C; border:1px solid #922B21; }
+    .legend-note { margin-top:6px; color:#555; font-size:12px; }
+
+    /* Logo control (top-left) – visual polish */
+    .leaflet-control.logo-control {
+      background: rgba(255,255,255,0.9);
+      padding: 4px 6px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .leaflet-control.logo-control img { height: 28px; display:block; }
+
+    /* Larger tap targets for phones */
+    @media (max-width: 768px) {
+      .leaflet-marker-icon, .leaflet-marker-shadow {
+        transform: scale(1.25);
+        transform-origin: center center;
+      }
+      .leaflet-popup-content { font-size: 14px; }
+      .leaflet-popup-content table td, .leaflet-popup-content table th { padding: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Legend (bottom-right) -->
+  <div id="map-legend">
+    <b>Legend</b>
+    <div class="legend-row"><span class="swatch swatch-bathy-major"></span> Bathymetry (Major 20 m)</div>
+    <div class="legend-row"><span class="swatch swatch-bathy-minor"></span> Bathymetry (Minor 5 m)</div>
+    <div class="legend-row"><span class="dot dot-school"></span> Ahmadi Schools</div>
+    <div class="legend-row"><span class="dot dot-fire"></span> Fire Stations</div>
+    <div class="legend-note">Depths in meters (LAT) • CRS: EPSG:32639</div>
+  </div>
+
+  <!-- Your existing JS bundle from QGIS2Web -->
+  <script src="js/qgis2web_expressions.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/leaflet.rotatedMarker.js"></script>
+  <script src="js/leaflet.pattern.js"></script>
+  <script src="js/leaflet-hash.js"></script>
+  <script src="js/Autolinker.min.js"></script>
+  <script src="js/rbush.min.js"></script>
+  <script src="js/labelgun.min.js"></script>
+  <script src="js/labels.js"></script>
+  <script src="js/leaflet-measure.js"></script>
+  <script src="data/Bathymetry_Contor_1.js"></script>
+  <script src="data/AhmadiSchools_2.js"></script>
+  <script src="data/AhmadiFireStations_3.js"></script>
+  <script src="js/qgis2web.js"></script>
+
+  <script>
+    // Enhance the exported map after qgis2web.js initializes it.
+    // qgis2web.js defines "map" globally; these lines run after it loads.
+
+    // 1) Fullscreen control (top-left)
+    if (window.map) {
+      L.control.fullscreen({ position: 'topleft' }).addTo(map);
+    }
+
+    // 2) Measure: switch to kilometers + miles (if control exists)
+    // Find and replace existing measure control if created by qgis2web.js.
+    // If not found, create a new one.
+    (function () {
+      try {
+        // Try to remove an existing measure control (if any)
+        var existing = document.getElementsByClassName('leaflet-control-measure-toggle')[0];
+        if (!existing) {
+          // Create a new measure control
+          var measureCtrl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'kilometers',
+            secondaryLengthUnit: 'miles',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'acres'
+          });
+          measureCtrl.addTo(map);
+        } else {
+          // If it exists, we assume qgis2web created it; we can't reconfigure easily here.
+          // But we can at least ensure the icon renders and map supports sticky popups.
+        }
+      } catch(e) { /* silent */ }
+    })();
+
+    // 3) Sticky popups: do not auto-close on click
+    if (window.map) {
+      map.options.closePopupOnClick = false;
+    }
+
+    // 4) Logo control (top-left)
+    (function () {
+      if (!window.map) return;
+      var LogoControl = L.Control.extend({
+        options: { position: 'topleft' },
+        onAdd: function () {
+          var div = L.DomUtil.create('div', 'leaflet-control logo-control');
+          div.innerHTML = '<img src="img/kuwait-coast-guard.png" alt="Kuwait Coast Guard">';
+          return div;
+        }
+      });
+      map.addControl(new LogoControl());
+    })();
+  </script>
+</body>
+</html>

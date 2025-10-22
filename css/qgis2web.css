@@ -1,0 +1,36 @@
+@charset "UTF-8";
+/* Base QGIS2Web styles (minimal scaffold). If you already have a working qgis2web.css,
+   you can replace it with this or merge the blocks below into your existing file. */
+
+/* Map container sizing is handled in index.html style tag (html, body, #map). */
+
+/* Popup table polish */
+.leaflet-popup-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.leaflet-popup-content th {
+  background: #f4f4f4;
+  text-align: center;
+  padding: 6px;
+}
+.leaflet-popup-content td {
+  border-top: 1px solid #ddd;
+  padding: 4px;
+}
+
+/* Larger tap targets on phones/tablets */
+@media (max-width: 768px) {
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow {
+    transform: scale(1.25);
+    transform-origin: center center;
+  }
+  .leaflet-popup-content {
+    font-size: 14px;
+  }
+  .leaflet-popup-content table td,
+  .leaflet-popup-content table th {
+    padding: 6px;
+  }
+}
